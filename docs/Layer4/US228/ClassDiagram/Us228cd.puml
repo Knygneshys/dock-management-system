@@ -1,0 +1,68 @@
+@startuml VVNCreationCD
+
+class VesselVisitNotificationsController {
+    +CreateAsync(vvnDto: VVNDto, requesterEmail: string)
+    +UpdateStatusAsync(code: int, newStatus: VVNStatus, requesterEmail: string)
+}
+
+class VVNRepository {
+    +CreateAsync(vvn: VesselVisitNotification): Task<int>
+    +UpdateStatusAsync(code: int, status: VVNStatus): Task<VesselVisitNotification>
+}
+
+class CargoManifestRepository {
+    +CreateAsync(manifest: CargoManifest): Task<string>
+    +UpdateAsync(code: string, dto: CargoManifestDTO): Task<CargoManifest>
+}
+
+class CargoItemRepository {
+    +CreateAsync(item: CargoItem): Task<string>
+    +FindByCodeAsync(code: string): Task<CargoItem?>
+}
+
+class VesselVisitNotification {
+    +Code: int
+    +ETA: DateTime
+    +ETD: DateTime
+    +Status: VVNStatus
+    +CargoLoadManifest: CargoLoadManifest
+    +CargoUnloadManifest: CargoUnloadManifest
+    +CrewManifest: CrewManifest?
+}
+
+class CargoManifest {
+    +Code: string
+    +CargoType: CargoType
+    +CargoItems: List<CargoItem>
+}
+
+class CargoItem {
+    +Code: string
+    +ContainerISO: double
+    +Description: string
+    +From: string
+    +To: string
+}
+
+class CrewManifest {
+    +CrewMembers: List<CrewMember>
+}
+
+class CrewMember {
+    +FullName: string
+    +CitizenshipId: int
+    +Nationality: string
+}
+
+enum VVNStatus {
+    InProgress
+    Submitted
+}
+
+VesselVisitNotificationsController --> VVNRepository : uses >
+VesselVisitNotificationsController --> CargoManifestRepository : creates manifests >
+CargoManifestRepository --> CargoItemRepository : validates ISO codes >
+VesselVisitNotification --> CargoManifest : composition >
+VesselVisitNotification --> CrewManifest : optional >
+CrewManifest --> CrewMember : contains >
+@enduml

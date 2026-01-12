@@ -1,0 +1,1 @@
+export const getAllSARVVNsQueryKey = ["FETCH_ALL_SAR_VVNs"];

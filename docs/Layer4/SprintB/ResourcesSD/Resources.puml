@@ -1,0 +1,114 @@
+@startuml
+title Resources Management - Main Flows
+
+actor User
+
+participant "Resources" as Res
+participant "ResourceCreationDialog" as RCreateDlg
+participant "ResourceCreationForm" as RCreateForm
+participant "ResourceSearchDialog" as RSearchDlg
+participant "ResourceSearchBar" as RSearchBar
+participant "ResourcesTable" as ResTable
+participant "Backend API" as API
+
+' ============================================================
+' PAGE LOAD
+' ============================================================
+group Page Load
+  User -> Res: Open Resources page
+
+  Res -> API: useGetAllResourcesQuery(searchQuery)
+  API --> Res: resources
+
+  alt isLoading
+Res -> Res: Show CircularProgress
+  else resources available
+    Res -> ResTable: Render resources list
+  else no resources
+    Res-> Res: Show "No Resources found"
+  end
+end
+
+' ============================================================
+' CREATE RESOURCE
+' ============================================================
+group Create Resource
+  User -> Res: Click Add Resource icon
+  Res -> RCreateDlg: Open creation dialog
+
+  User -> RCreateDlg: Fill form and submit
+  RCreateDlg -> RCreateForm: onCreation handler
+
+  ' Inside form (simplificado)
+  RCreateForm -> API: createResource(resourceData)
+  API --> RCreateForm: Success
+
+  RCreateForm -> RCreateDlg: Call onCreation (close)
+  RCreateDlg -> Res: handleClose
+
+  ' React Query normalmente faz refetch após mutation
+  Res -> API: useGetAllResourcesQuery(searchQuery) refetch
+  API --> Res: updated resources
+
+  Res -> ResTable: Re-render resources list
+end
+
+' ============================================================
+' ACTIVATE / DEACTIVATE RESOURCE
+' ============================================================
+group Change Resource Status
+  User -> ResTable: Click deactivate or reactivate icon
+
+  alt Deactivate resource
+    ResTable -> Res: onDeactivateButtonClick(resourceCode)
+    Res -> API: deactivateResource(resourceCode)
+  else Reactivate resource
+    ResTable -> Res: onReactivateButtonClick(resourceCode)
+    Res -> API: reactivateResource(resourceCode)
+  end
+
+  API --> Res: Status updated
+
+  Res -> API: useGetAllResourcesQuery(searchQuery) refetch
+  API --> Res: updated resources
+
+  Res -> ResTable: Re-render resources list
+end
+
+' ============================================================
+' OPEN SEARCH DIALOG
+' ============================================================
+group Open Search Dialog
+  User -> Res: Click Filter icon
+  Res -> RSearchDlg: Open search dialog
+  RSearchDlg -> RSearchBar: Render with current searchQuery
+end
+
+' ============================================================
+' SEARCH WITH DEBOUNCE
+' ============================================================
+group Search Resources (debounced)
+  User -> RSearchBar: Type / change filters
+
+  ' onChange is debounced inside Resources
+  RSearchBar -> Res: debounced onChange(event)
+
+  Res -> Res: handleSearchChange(event)
+  Res -> Res: setSearchQuery(updatedSearchQuery)
+
+  Res -> API: useGetAllResourcesQuery(updatedSearchQuery)
+  API --> Res: filtered resources
+
+  Res -> ResTable: Render filtered resources
+end
+
+' ============================================================
+' CLOSE SEARCH DIALOG
+' ============================================================
+group Close Search Dialog
+  User -> RSearchDlg: Click Cancel
+  RSearchDlg -> Res: handleClose
+  Res-> Res: Keep current searchQuery and results
+end
+
+@enduml

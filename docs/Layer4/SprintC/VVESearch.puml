@@ -1,0 +1,41 @@
+@startuml
+title VVE Search Component - Code Level
+
+class VVEController {
+  +search()
+  +getByCode()
+}
+
+interface IVVEService {
+  +search()
+  +getByCode()
+}
+
+class vveService
+
+interface IVVERepo {
+  +search()
+  +findByCode()
+}
+
+class vveRepo
+
+class VVE {
+  -code: VVNCode
+  -berthDate: Date
+  +create()
+}
+ 
+class VVEMap {
+  +toDTO()
+  +toDomain()
+}
+
+VVEController --> IVVEService
+vveService ..|> IVVEService
+vveService --> IVVERepo
+vveRepo ..|> IVVERepo
+vveRepo --> VVEMap
+VVEMap --> VVE
+
+@enduml

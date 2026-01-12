@@ -1,0 +1,128 @@
+@startuml
+title Dock Records - Main Flows (Corrected Version)
+
+actor User
+
+participant "DockRecords Page" as Page
+participant "DockRecordTable" as Table
+participant "DockRecordCreationDialog" as CreateDlg
+participant "DockRecordCreationForm" as CreateForm
+participant "DockRecordUpdateDialog" as UpdateDlg
+participant "DockUpdateForm" as UpdateForm
+participant "DockRecordSearchDialog" as SearchDlg
+participant "DockRecordSearchForm" as SearchForm
+participant "Backend API" as API
+
+
+' ===========================
+' PAGE LOAD
+' ===========================
+group Page Load
+  User -> Page: Open Dock Records Page
+  
+  Page -> API: useGetAllDockRecordsQuery()
+  API --> Page: dockRecords[]
+
+  alt isLoading
+    Page -> Page: Show CircularProgress
+  else data available
+    Page -> Table: Render dockRecords list
+  else no dock records
+    Page -> Page: Show "No dock records found"
+  end
+end
+
+
+' ===========================
+' CREATE DOCK RECORD
+' ===========================
+group Create Dock Record
+  User -> Page: Click "Add" icon
+  Page -> CreateDlg: Open creation dialog
+
+  User -> CreateForm: Fill form fields
+  CreateForm -> CreateForm: Formik validation on submit
+
+  User -> CreateForm: Submit form
+  CreateForm -> Page: onSubmit(values)
+
+  Page -> API: createDockRecordMutation(values)
+  API --> Page: Success
+
+  Page -> Page: getAllDockRecordsQuery.refetch()
+  API --> Page: updated dockRecords[]
+
+  Page -> CreateDlg: handleClose()
+  Page -> Table: Re-render updated list
+end
+
+
+' ===========================
+' UPDATE DOCK RECORD
+' ===========================
+group Update Dock Record
+  User -> Table: Click Edit icon
+  Table -> Page: onUpdateButtonClick(dockRecordCode)
+  Page -> UpdateDlg: Open update dialog
+  
+  UpdateDlg -> API: useGetDockRecordByIdQuery(dockRecordCode)
+  API --> UpdateDlg: dockRecord
+
+  User -> UpdateForm: Change fields
+  UpdateForm -> UpdateForm: Validation on submit
+
+  User -> UpdateForm: Submit
+  UpdateForm -> Page: mutate(updatedDockRecord)
+  Page -> API: updateDockRecordMutation(updatedDockRecord)
+  API --> Page: Success
+
+  ' IMPORTANT: Your code does NOT refetch here.
+  Page -> UpdateDlg: handleClose()
+  Page -> Page: No automatic refetch (table may show outdated data)
+end
+
+
+' ===========================
+' OPEN SEARCH DIALOG
+' ===========================
+group Open Search Dialog
+  User -> Page: Click Filter icon
+  Page -> SearchDlg: Open search dialog
+end
+
+
+' ===========================
+' SEARCH DOCK RECORDS
+' ===========================
+group Search Dock Records
+  User -> SearchForm: Fill filter fields
+  SearchForm -> SearchForm: Validation on submit
+
+  User -> SearchForm: Submit
+  SearchForm -> Page: onSubmit(values)
+
+  Page -> Page: setSearchQuery(values)
+
+  Page -> API: useSearchDockRecordsQuery(values)
+  API --> Page: filteredDockRecords[]
+
+  alt Results found
+    Page -> Table: Render filtered list
+  else No results
+    Page -> Page: Show "No dock records found"
+  end
+
+  Page -> SearchDlg: handleClose()
+end
+
+
+' ===========================
+' CLOSE SEARCH DIALOG
+' ===========================
+group Close Search Dialog
+  User -> SearchDlg: Click Cancel
+  SearchDlg -> Page: handleClose()
+  Page -> Page: Keep current searchQuery
+end
+
+@enduml

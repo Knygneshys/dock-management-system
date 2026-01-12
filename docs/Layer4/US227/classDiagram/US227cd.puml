@@ -1,0 +1,51 @@
+@startuml VVNApprovalCD
+
+class VesselVisitNotificationsController {
+    +ApproveVVN(code: int, requesterEmail: string)
+    +RejectVVN(code: int, feedback: FeedbackDTO, requesterEmail: string)
+    +InProgressVVN(code: int, requesterEmail: string)
+}
+
+class VVNRepository {
+    +GetByCodeAsync(code: int): VesselVisitNotification
+    +UpdateStatusAsync(code: int, newStatus: VVNStatus): VesselVisitNotification
+}
+
+class FeedbackRepository {
+    +CreateAsync(feedback: Feedback): Task<Guid>
+}
+
+class DockAvailabilityService {
+    +FindAvailableDockAsync(vesselType: string): Dock
+}
+
+class DockRecordRepository {
+    +CreateAsync(record: DockRecord): Task<Guid>
+}
+
+class VesselVisitRepository {
+    +CreateAsync(visit: VesselVisit): Task<Guid>
+}
+
+class VesselVisitNotification {
+    +Code: int
+    +Status: VVNStatus
+    +VesselName: string
+    +ETA: DateTime
+}
+
+enum VVNStatus {
+    Submitted
+    InProgress
+    Approved
+    Rejected
+}
+
+VesselVisitNotificationsController --> VVNRepository : uses >
+VesselVisitNotificationsController --> FeedbackRepository : logs >
+VesselVisitNotificationsController --> DockAvailabilityService : requests dock >
+DockAvailabilityService --> DockRecordRepository : creates record >
+VesselVisitNotificationsController --> VesselVisitRepository : schedules visit >
+VVNRepository --> VesselVisitNotification : manages entity >
+
+@enduml

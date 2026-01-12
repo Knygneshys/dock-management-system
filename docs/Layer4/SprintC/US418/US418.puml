@@ -1,0 +1,140 @@
+@startuml
+title Layer 4 Class Model - VVE Update (berth time + dock) with discrepancy note
+
+skinparam classAttributeIconSize 0
+hide circle
+
+package "Interface (HTTP)" {
+  class VVERoute
+  interface IVVEController {
+    +createVVE(req,res,next)
+    +getAllVVE(req,res,next)
+    +updateVVE(req,res,next)
+    +searchVVE(req,res,next)
+  }
+  class VVEController
+  VVERoute --> IVVEController : routes call
+  VVEController ..|> IVVEController
+}
+
+package "Use-Cases / Application" {
+  interface IVVEService {
+    +createVve(dto: IVVEDTO): Result<IVVEDTO>
+    +getAllVves(): Result<IVVEDTO[]>
+    +updateVVE(code: number, dto: IVVEDTO): Result<IVVEDTO>
+  }
+
+  class VVEService {
+    -vveRepo: IVVERepo
+    -operationPlanRepo: IOperationPlanRepo
+    +updateVVE(code: number, dto: IVVEDTO): Result<IVVEDTO>
+  }
+
+  class VVEMap {
+    +toDTO(vve: VVE): IVVEDTO
+    +toDomain(persistence): Result<VVE>
+    +toPersistence(vve: VVE): IVVEPersistence
+  }
+
+  class IVVEDTO {
+    code: number
+    vvnCode: number
+    vesselImo: string
+    arrivalTime: Date
+    dockCode: string
+    status: string
+    notes: string[]
+    updatedAt: Date
+  }
+
+  VVEController --> IVVEService : calls
+  VVEService ..|> IVVEService
+  VVEService --> VVEMap
+}
+
+package "Domain" {
+  enum VVEStatus {
+    InProgress
+    Concluded
+    Waiting
+    Departing
+  }
+
+  class VVNCode
+  class VesselImo
+  class UserEmail
+  class DockCode
+
+  class VVE {
+    -props: VVEProps
+    +updateBerthTime(time: Date): Result<void>
+    +alterDockOfBerth(dockCode: DockCode): Result<void>
+    +conclude(): Result<void>
+  }
+
+  class VVEProps {
+    code: VVNCode
+    vvnCode: VVNCode
+    vesselImo: VesselImo
+    arrivalTime: Date
+    creatorUserEmail: UserEmail
+    status: VVEStatus
+    dockCode: DockCode
+    notes: string[]
+    updatedAt: Date
+  }
+
+  VVE --> VVEProps
+  VVEProps --> VVEStatus
+  VVEProps --> VVNCode
+  VVEProps --> VesselImo
+  VVEProps --> UserEmail
+  VVEProps --> DockCode
+
+  note right of VVE
+  Business rules:
+  - only InProgress can be updated
+  - if actual dock != planned dock => add note
+  - set updatedAt/lastUpdatedAt (audit)
+  end note
+}
+
+package "Infrastructure (MongoDB)" {
+  interface IVVERepo {
+    +findByDomainId(code: VVNCode): Promise<VVE>
+    +save(vve: VVE): Promise<VVE>
+    +getAll(): Promise<VVE[]>
+  }
+  class VVERepo
+  VVERepo ..|> IVVERepo
+
+  interface IOperationPlanRepo {
+    +getDockCodeByVVNCode(vvnCode: VVNCode): Promise<string>
+  }
+  class OperationPlanRepo
+  OperationPlanRepo ..|> IOperationPlanRepo
+
+  class IVVEPersistence {
+    code: number
+    vvnCode: number
+    vesselImo: string
+    arrivalTime: Date
+    dockCode: string
+    status: VVEStatus
+    notes: string[]
+    updatedAt: Date
+  }
+
+  class VVESchema
+  class OperationPlanSchema
+
+  VVERepo --> VVESchema : uses
+  OperationPlanRepo --> OperationPlanSchema : uses
+  VVERepo --> VVEMap : mapping
+}
+
+VVEService --> IVVERepo
+VVEService --> IOperationPlanRepo
+VVEService --> VVE : domain update
+
+@enduml

@@ -1,0 +1,14 @@
+[Unit]
+Description=jade Weser Port API Backend Server
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/jadeweserport/published
+ExecStart=/usr/bin/dotnet /var/www/jadeweserport/published/JadeWesserPort.dll
+Restart=always
+Environment=JWPDB=
+Environment=Auth0__Domain=jade-weser-port.eu.auth0.com
+Environment=Auth0__Audience=https://jade-weser-port.eu.auth0.com/api/v2/
+
+[Install]
+WantedBy=multi-user.target

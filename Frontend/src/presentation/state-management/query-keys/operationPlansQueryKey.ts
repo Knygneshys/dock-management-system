@@ -1,0 +1,1 @@
+export const getAllOperationPlansQueryKey = ["FETCH_ALL_OPERATION_PLANS"];

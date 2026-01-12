@@ -1,0 +1,53 @@
+@startuml
+title Missing Plans Regeneration - Code Level
+
+class OperationPlanController {
+  +deleteByDate()
+  +create()
+  +getByDate()
+}
+
+interface IOperationPlanService {
+  +deleteByDate()
+  +create()
+  +regenerate()
+}
+
+class operationPlanService
+
+interface IOperationPlanRepo {
+  +deleteByDate()
+  +save()
+  +findByDate()
+}
+
+class operationPlanRepo
+
+class OemIntermediator {
+  +DeleteOperationPlansByDateAsync()
+  +GetApprovedVVNsAsync()
+}
+
+class OperationPlan {
+  -vvnCode: number
+  -dockCode: string
+  -start: Date
+  -isRegenerated: boolean
+  +create()
+}
+
+class OperationPlanMap { 
+  +toDTO()
+  +toDomain()
+  +toPersistence()
+}
+
+OperationPlanController --> IOperationPlanService
+OperationPlanController --> OemIntermediator
+operationPlanService ..|> IOperationPlanService
+operationPlanService --> IOperationPlanRepo
+operationPlanRepo ..|> IOperationPlanRepo
+operationPlanRepo --> OperationPlanMap
+OperationPlanMap --> OperationPlan
+
+@enduml

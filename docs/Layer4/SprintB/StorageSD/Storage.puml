@@ -1,0 +1,128 @@
+@startuml
+title Storage Areas - Main Flows (Corrected Version)
+
+actor User
+
+participant "StorageAreas Page" as Page
+participant "StorageAreaTable" as Table
+participant "StorageAreaCreationDialog" as CreateDlg
+participant "StorageAreaCreationForm" as CreateForm
+participant "StorageAreaUpdateDialog" as UpdateDlg
+participant "StorageAreaUpdateForm" as UpdateForm
+participant "StorageAreaSearchDialog" as SearchDlg
+participant "StorageAreaSearchForm" as SearchForm
+participant "Backend API" as API
+
+
+' ===========================
+' PAGE LOAD
+' ===========================
+group Page Load
+  User -> Page: Open Storage Areas Page
+  
+  Page -> API: useGetAllStorageAreasQuery()
+  API --> Page: storageAreas[]
+
+  alt isLoading
+    Page -> Page: Show CircularProgress
+  else data available
+    Page -> Table: Render storageAreas list
+  else no storage areas
+    Page -> Page: Show "No Storage Areas found"
+  end
+end
+
+
+' ===========================
+' CREATE STORAGE AREA
+' ===========================
+group Create Storage Area
+  User -> Page: Click "Add" icon
+  Page -> CreateDlg: Open creation dialog
+
+  User -> CreateForm: Fill form fields
+  CreateForm -> CreateForm: Formik validation on submit
+
+  User -> CreateForm: Submit form
+  CreateForm -> Page: onSubmit(values)
+
+  Page -> API: createStorageAreaMutation(values)
+  API --> Page: Success
+
+  Page -> Page: getAllStorageAreasQuery.refetch()
+  API --> Page: updated storageAreas[]
+
+  Page -> CreateDlg: handleClose()
+  Page -> Table: Re-render updated list
+end
+
+
+' ===========================
+' UPDATE STORAGE AREA
+' ===========================
+group Update Storage Area
+  User -> Table: Click Edit icon
+  Table -> Page: onUpdateButtonClick(storageAreaCode)
+  Page -> UpdateDlg: Open update dialog
+  
+  UpdateDlg -> API: useGetStorageAreaByIdQuery(storageAreaCode)
+  API --> UpdateDlg: storageArea
+
+  User -> UpdateForm: Change fields
+  UpdateForm -> UpdateForm: Validation on submit
+
+  User -> UpdateForm: Submit
+  UpdateForm -> Page: mutate(updatedStorageArea)
+  Page -> API: updateStorageAreaMutation(updatedStorageArea)
+  API --> Page: Success
+
+  ' IMPORTANT: Your code does NOT refetch after update
+  Page -> UpdateDlg: handleClose()
+  Page -> Page: No automatic refetch (table may show outdated data)
+end
+
+
+' ===========================
+' OPEN SEARCH DIALOG
+' ===========================
+group Open Search Dialog
+  User -> Page: Click Filter icon
+  Page -> SearchDlg: Open search dialog
+end
+
+
+' ===========================
+' SEARCH STORAGE AREAS
+' ===========================
+group Search Storage Areas
+  User -> SearchForm: Fill filter fields
+  SearchForm -> SearchForm: Validation on submit
+
+  User -> SearchForm: Submit
+  SearchForm -> Page: onSubmit(values)
+
+  Page -> Page: setSearchQuery(values)
+
+  Page -> API: useSearchStorageAreasQuery(values)
+  API --> Page: filteredStorageAreas[]
+
+  alt Results found
+    Page -> Table: Render filtered list
+  else No results
+    Page -> Page: Show "No Storage Areas found"
+  end
+
+  Page -> SearchDlg: handleClose()
+end
+
+
+' ===========================
+' CLOSE SEARCH DIALOG
+' ===========================
+group Close Search Dialog
+  User -> SearchDlg: Click Cancel
+  SearchDlg -> Page: handleClose()
+  Page -> Page: Keep current searchQuery
+end
+
+@enduml

@@ -1,0 +1,199 @@
+@startuml
+title Vessel Management - Main Flows (Vessel Types & Vessels)
+
+actor User
+
+participant "VesselManagement" as VM
+participant "VesselTypes" as VT
+participant "VesselTypeTable" as VTTable
+participant "VesselTypeCreationDialog" as VTCreateDlg
+participant "VesselTypeSearchDialog" as VTSearchDlg
+participant "VesselTypeUpdateDialog" as VTUpdateDlg
+
+participant "Vessels" as V
+participant "VesselTable" as VTable
+participant "VesselCreationDialog" as VCreateDlg
+participant "VesselSearchDialog" as VSearchDlg
+participant "VesselUpdateDialog" as VUpdateDlg
+
+participant "Backend API" as API
+
+' ============================================================
+' PAGE LOAD
+' ============================================================
+group Page Load
+  User -> VM: Navigate to Vessel Management
+  activate VM
+
+  VM -> API: getAllVesselTypes()
+  API --> VM: vesselTypesFromDatabase
+
+  VM -> VT: Render VesselTypes(vesselTypesFromDatabase)
+  VM -> V: Render Vessels(vesselTypes)
+
+  deactivate VM
+end
+
+' ============================================================
+' VESSEL TYPES - LIST & RESOLVE DATA SOURCE
+' ============================================================
+group Vessel Types initial render
+  VT -> VT: Decide list source\n(search vs database)
+  VT -> VTTable: Render vesselTypes
+end
+
+' ============================================================
+' VESSEL TYPES - CREATE
+' ============================================================
+group Create Vessel Type
+  User -> VT: Click Add Vessel Type
+  VT -> VTCreateDlg: Open dialog
+
+  User -> VTCreateDlg: Submit new vessel type
+  VTCreateDlg -> VT: onSubmit(vesselType)
+
+  VT -> API: createVesselType(vesselType)
+  API --> VT: Success
+
+  VT -> VTCreateDlg: Close dialog
+
+  ' (Opcional) refetch externo, mas não está explícito no componente
+  VT -> VT: Update UI state with new type
+  VT -> VTTable: Re-render vesselTypes
+end
+
+' ============================================================
+' VESSEL TYPES - SEARCH
+' ============================================================
+group Search Vessel Types
+  User -> VT: Click Search icon
+  VT -> VTSearchDlg: Open dialog
+
+  User -> VTSearchDlg: Submit search query
+  VTSearchDlg -> VT: onSubmit(searchQuery)
+
+  VT -> VT: setSearchQuery(searchQuery)
+  VT -> API: searchVesselTypes(searchQuery)
+  API --> VT: filteredVesselTypes
+
+  VT -> VTTable: Render filtered vesselTypes
+
+  ' Clear search (searchQuery becomes null)
+  User -> VT: Clear search (e.g. in UI)
+  VT -> VT: setSearchQuery(null)
+  VT -> VT: Use vesselTypesFromDatabase as list
+  VT -> VTTable: Render original vesselTypes
+end
+
+' ============================================================
+' VESSEL TYPES - UPDATE
+' ============================================================
+group Update Vessel Type
+  User -> VTTable: Click Edit vessel type
+  VTTable -> VT: onUpdateButtonClick(vesselTypeCode)
+
+  VT -> VTUpdateDlg: Open dialog with code
+
+  User -> VTUpdateDlg: Submit updated vessel type
+  VTUpdateDlg -> API: updateVesselType(vesselType)
+
+  API --> VTUpdateDlg: Success
+  VTUpdateDlg -> VT: Close dialog
+
+  ' (Opcional) refetch or local update
+  VT -> VT: Update list (local or refetch)
+  VT -> VTTable: Re-render vesselTypes
+end
+
+' ============================================================
+' VESSELS - INITIAL RENDER & LIST
+' ============================================================
+group Vessels initial render
+  V -> API: getAllVessels()
+  API --> V: vessels
+
+  V -> VTable: Render vessels
+end
+
+' ============================================================
+' VESSELS - CREATE
+' ============================================================
+group Create Vessel
+  User -> V: Click Add Vessel
+  V -> VCreateDlg: Open dialog
+
+  VCreateDlg -> API: getAllCompanies()
+  API --> VCreateDlg: companies
+
+  User -> VCreateDlg: Submit new vessel
+  VCreateDlg -> V: onSubmit(vessel)
+
+  V -> API: createVessel(vessel)
+  API --> V: Success
+
+  V -> VCreateDlg: Close dialog
+
+  ' (Opcional) refetch vessels
+  V -> API: getAllVessels()
+  API --> V: updated vessel list
+
+  V -> VTable: Re-render vessels
+end
+
+' ============================================================
+' VESSELS - SEARCH
+' ============================================================
+group Search Vessels
+  User -> V: Click Search icon
+  V -> VSearchDlg: Open dialog
+
+  VSearchDlg -> API: getAllCompanies()
+  API --> VSearchDlg: companies
+
+  User -> VSearchDlg: Submit search query
+  VSearchDlg -> V: onSubmit(searchQuery)
+
+  V -> V: setSearchQuery(searchQuery)
+  V -> API: searchVessels(searchQuery)
+  API --> V: filteredVessels
+
+  V -> VTable: Render filtered vessels
+
+  ' Case when no results or search cleared:
+  User -> V: Clear search (or empty results)
+  V -> V: setSearchQuery(null)
+  V -> API: getAllVessels()
+  API --> V: all vessels
+
+  V -> VTable: Render all vessels
+end
+
+' ============================================================
+' VESSELS - UPDATE
+' ============================================================
+group Update Vessel
+  User -> VTable: Click Edit vessel
+  VTable -> V: onUpdateButtonClick(vesselImo)
+
+  V -> VUpdateDlg: Open dialog with vesselImo
+
+  VUpdateDlg -> API: getVesselByImo(vesselImo)
+  API --> VUpdateDlg: vessel
+
+  VUpdateDlg -> API: getAllCompanies()
+  API --> VUpdateDlg: companies
+
+  User -> VUpdateDlg: Submit updated vessel
+  VUpdateDlg -> API: updateVessel(updatedVessel)
+  API --> VUpdateDlg: Success
+
+  VUpdateDlg -> V: Close dialog
+
+  ' (Opcional) refetch vessels
+  V -> API: getAllVessels()
+  API --> V: updated list
+
+  V -> VTable: Re-render vessels
+end
+
+@enduml

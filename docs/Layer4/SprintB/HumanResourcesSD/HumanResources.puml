@@ -1,0 +1,584 @@
+@startuml
+title Human Resources Page - Main Flows (Staff Members & Qualifications)
+
+actor User
+
+participant "HumanResources\n(HumanResources.jsx)" as HR
+participant "StaffMembers\n(StaffMembers.jsx)" as Staff
+participant "StaffMemberTable" as StaffTable
+participant "StaffMemberCreationDialog" as SMCreateDlg
+participant "StaffMemberUpdateDialog" as SMUpdateDlg
+participant "OperationalWindowsDialog\n(OWDialog)" as OWDlg
+participant "OWCreationDialog" as OWCreateDlg
+participant "OWUpdateDialog" as OWUpdateDlg
+participant "StaffQualificationsDialog" as SMQualDlg
+
+participant "Qualifications\n(Qualifications.jsx)" as Quals
+participant "QualificationsTable" as QualsTable
+participant "QualificationCreationDialog" as QualCreateDlg
+participant "QualificationUpdateDialog" as QualUpdateDlg
+participant "QualificationSearchDialog" as QualSearchDlg
+
+participant "ConfirmationDialog" as ConfirmDlg
+participant "Backend API" as API
+
+' ============================================================
+' PAGE LOAD
+' ============================================================
+group Page Load - HumanResources
+  User -> HR: Navigate to /human-resources
+  activate HR
+
+  HR -> Staff: render <StaffMembers />
+  HR -> Quals: render <Qualifications />
+
+  ' Staff Members initial data
+  Staff -> API: useGetAllStaffMembersQuery()
+  Staff -> API: useGetAllQualificationsQuery() (for StaffQualificationsDialog)
+
+  ' Qualifications initial data
+  Quals -> API: useGetAllQualificationsQuery()
+
+  API --> Staff: staffMembers data
+  API --> Staff: qualifications data (for availableQualifications)
+  API --> Quals: qualifications data
+
+  Staff -> StaffTable: render(activeStaffMembers, inactiveStaffMembers)
+  Quals -> QualsTable: render(qualifications)
+end
+
+' ============================================================
+' STAFF MEMBERS - CREATE
+' ============================================================
+group Create Staff Member
+  User -> Staff: Click "Add Staff Member" (IconButton)
+  Staff -> SMCreateDlg: open()
+
+  User -> SMCreateDlg: Fill form + Submit
+  SMCreateDlg -> Staff: onSubmit(staffMember)
+
+  Staff -> API: createStaffMemberMutation.mutateAsync(staffMember)
+  API --> Staff: Staff member created
+
+  Staff -> SMCreateDlg: handleClose()
+  Staff -> API: refetch staffMembers
+  API --> Staff: updated staffMembers
+
+  Staff -> StaffTable: re-render(activeStaffMembers, inactiveStaffMembers)
+end
+
+' ============================================================
+' STAFF MEMBERS - ACTIVATE / DEACTIVATE
+' ============================================================
+group Activate / Deactivate Staff Member
+  User -> StaffTable: Click Activate/Deactivate icon
+  StaffTable -> Staff: onStatusChangeClick(mecanographicNumber)
+
+  Staff -> Staff: handleDeactivation(mNumber, willActivate)
+  Staff -> ConfirmDlg: open(title, message)
+
+  User -> ConfirmDlg: Confirm
+  ConfirmDlg -> Staff: onConfirm()
+
+  alt isActivating == true
+    Staff -> API: activateStaffMemberMutation.mutateAsync(currentStaffNumber)
+  else isActivating == false
+    Staff -> API: deactivateStaffMemberMutation.mutateAsync(currentStaffNumber)
+  end
+
+  API --> Staff: status updated
+  Staff -> ConfirmDlg: close()
+
+  Staff -> API: refetch staffMembers
+  API --> Staff: updated staffMembers
+
+  Staff -> StaffTable: re-render(activeStaffMembers, inactiveStaffMembers)
+end
+
+' ============================================================
+' STAFF MEMBERS - UPDATE
+' ============================================================
+group Update Staff Member
+  User -> StaffTable: Click "Edit" icon
+  StaffTable -> Staff: onUpdateButtonClick(staff)
+
+  Staff -> Staff: setCurrentStaffMember(staff)
+  Staff -> SMUpdateDlg: open(currentStaffMember)
+
+  User -> SMUpdateDlg: Edit staff data + Save
+  SMUpdateDlg -> API: updateStaffMemberMutation.mutate(updatedStaffMember)
+
+  API --> SMUpdateDlg: staff member updated
+  SMUpdateDlg -> Staff: handleClose()
+
+  Staff -> API: refetch staffMembers
+  API --> Staff: updated staffMembers
+
+  Staff -> StaffTable: re-render(activeStaffMembers, inactiveStaffMembers)
+end
+
+' ============================================================
+' OPERATIONAL WINDOWS - OPEN DIALOG
+' ============================================================
+group Manage Operational Windows - Open Dialog
+  User -> StaffTable: Click "Manage Operational Windows"
+  StaffTable -> Staff: onOperationalWindowsClick(staff)
+
+  Staff -> Staff: setSelectedStaffMember(staff)
+  Staff -> OWDlg: open(staffMember)
+end
+
+' ============================================================
+' OPERATIONAL WINDOWS - CREATE
+' ============================================================
+group Create Operational Window
+  User -> OWDlg: Click "Add Window"
+  OWDlg -> OWCreateDlg: open()
+
+  User -> OWCreateDlg: Fill window form + Submit
+  OWCreateDlg -> OWDlg: onSubmit(operationalWindow)
+
+OWDlg -> API: createOperationalWindow.mutateAsync(mecanographicNumber, operationalWindow)
+
+
+  API --> OWDlg: operational window created
+  OWDlg -> OWCreateDlg: close()
+  OWDlg -> Staff: handleClose()
+  Staff -> OWDlg: close()
+
+  Staff -> API: refetch staffMembers
+  API --> Staff: updated staffMembers
+
+  Staff -> StaffTable: re-render with updated operationalWindows count
+end
+
+' ============================================================
+' OPERATIONAL WINDOWS - UPDATE
+' ============================================================
+group Update Operational Window
+  User -> OWDlg: Click "Edit" on window
+  OWDlg -> OWDlg: handleEditClick(window)
+  OWDlg -> OWUpdateDlg: open(operationalWindow)
+
+  User -> OWUpdateDlg: Edit window + Save
+  OWUpdateDlg -> OWDlg: onSubmit(operationalWindow)
+
+ OWDlg -> API: createOperationalWindow.mutateAsync(mecanographicNumber, operationalWindow)
+
+
+  API --> OWDlg: window updated
+
+  OWDlg -> OWUpdateDlg: close()
+  OWDlg -> Staff: handleClose()
+  Staff -> OWDlg: close()
+
+  Staff -> API: refetch staffMembers
+  API --> Staff: updated staffMembers
+
+  Staff -> StaffTable: re-render with updated operationalWindows
+end
+
+' ============================================================
+' OPERATIONAL WINDOWS - DELETE
+' ============================================================
+group Delete Operational Window
+  User -> OWDlg: Click "Delete" on window
+  OWDlg -> OWDlg: handleDeleteClick(window)
+  OWDlg -> ConfirmDlg: open("Delete Operational Window", message)
+
+  User -> ConfirmDlg: Confirm
+  ConfirmDlg -> OWDlg: onConfirm()
+
+OWDlg -> API: createOperationalWindow.mutateAsync(mecanographicNumber, operationalWindow)
+
+
+  API --> OWDlg: window deleted
+  OWDlg -> ConfirmDlg: close()
+  OWDlg -> Staff: handleClose()
+  Staff -> OWDlg: close()
+
+  Staff -> API: refetch staffMembers
+  API --> Staff: updated staffMembers
+
+  Staff -> StaffTable: re-render with updated operationalWindows
+end
+
+' ============================================================
+' STAFF QUALIFICATIONS - UPDATE FOR STAFF MEMBER
+' ============================================================
+group Update Staff Qualifications
+  User -> StaffTable: Click "Manage Qualifications"
+  StaffTable -> Staff: onQualificationsClick(staff)
+
+  Staff -> Staff: setSelectedStaffMember(staff)
+  Staff -> SMQualDlg: open(staffMember, availableQualifications)
+
+  User -> SMQualDlg: Select qualification codes + Save
+  SMQualDlg -> Staff: onSave(qualificationCodes)
+
+OWDlg -> API: createOperationalWindow.mutateAsync(mecanographicNumber, operationalWindow)
+
+
+  API --> Staff: qualifications updated
+  Staff -> SMQualDlg: close()
+
+  Staff -> API: refetch staffMembers
+  API --> Staff: updated staffMembers
+
+  Staff -> StaffTable: re-render with updated qualifications
+end
+
+' ============================================================
+' QUALIFICATIONS SECTION - VIEW ALL
+' ============================================================
+group View All Qualifications
+  User -> Quals: View "Qualifications" section
+  Quals -> API: useGetAllQualificationsQuery()
+  API --> Quals: qualifications data
+  Quals -> QualsTable: render(qualifications.data)
+end
+
+' ============================================================
+' QUALIFICATIONS - SEARCH
+' ============================================================
+group Search Qualifications
+  User -> Quals: Click "Filter" icon
+  Quals -> QualSearchDlg: open()
+
+  User -> QualSearchDlg: Fill search params + Search
+  QualSearchDlg -> Quals: onSearch(params)
+
+  Quals -> Quals: setSearchParams(params)
+  Quals -> Quals: setIsSearching(true)
+
+@startuml
+title Human Resources Page - Main Flows (Corrected PUML Safe Syntax)
+
+actor User
+
+participant "HumanResources" as HR
+participant "StaffMembers" as Staff
+participant "StaffMemberTable" as StaffTable
+participant "StaffMemberCreationDialog" as SMCreateDlg
+participant "StaffMemberUpdateDialog" as SMUpdateDlg
+participant "OperationalWindowsDialog" as OWDlg
+participant "OWCreationDialog" as OWCreateDlg
+participant "OWUpdateDialog" as OWUpdateDlg
+participant "StaffQualificationsDialog" as SMQualDlg
+
+participant "Qualifications" as Quals
+participant "QualificationsTable" as QualsTable
+participant "QualificationCreationDialog" as QualCreateDlg
+participant "QualificationUpdateDialog" as QualUpdateDlg
+participant "QualificationSearchDialog" as QualSearchDlg
+
+participant "ConfirmationDialog" as ConfirmDlg
+participant "Backend API" as API
+
+' ============================================================
+' PAGE LOAD
+' ============================================================
+group Page Load
+  User -> HR: Open HumanResources Page
+  HR -> Staff: Render StaffMembers
+  HR -> Quals: Render Qualifications
+
+  Staff -> API: Query all staff members
+  Staff -> API: Query all qualifications (for staff dialog)
+  Quals -> API: Query all qualifications
+
+  API --> Staff: staffMembers data
+  API --> Staff: qualifications data
+  API --> Quals: qualifications data
+
+  Staff -> StaffTable: Render active/inactive staff
+  Quals -> QualsTable: Render qualifications
+end
+
+' ============================================================
+' STAFF MEMBER - CREATE
+' ============================================================
+group Create Staff Member
+  User -> Staff: Click Add Staff Member
+  Staff -> SMCreateDlg: Open dialog
+
+  User -> SMCreateDlg: Submit new staff member
+  SMCreateDlg -> Staff: onSubmit
+
+  Staff -> API: createStaffMember(staffMember)
+  API --> Staff: Success
+
+  Staff -> SMCreateDlg: Close dialog
+  Staff -> API: Refetch staff members
+  API --> Staff: Updated list
+
+  Staff -> StaffTable: Re-render table
+end
+
+' ============================================================
+' STAFF MEMBER - ACTIVATE / DEACTIVATE
+' ============================================================
+group Activate or Deactivate Staff Member
+  User -> StaffTable: Click status change icon
+  StaffTable -> Staff: onStatusChangeClick(mecanographicNumber)
+
+  Staff -> ConfirmDlg: Open confirmation dialog
+  User -> ConfirmDlg: Confirm action
+
+  alt activating
+    Staff -> API: activateStaffMember(mecanographicNumber)
+  else deactivating
+    Staff -> API: deactivateStaffMember(mecanographicNumber)
+  end
+
+  API --> Staff: Success
+  Staff -> ConfirmDlg: Close dialog
+
+  Staff -> API: Refetch staff members
+  API --> Staff: Updated list
+
+  Staff -> StaffTable: Re-render
+end
+
+' ============================================================
+' STAFF MEMBER - UPDATE
+' ============================================================
+group Update Staff Member
+  User -> StaffTable: Click edit icon
+  StaffTable -> Staff: onUpdateButtonClick(staff)
+
+  Staff -> SMUpdateDlg: Open update dialog
+
+  User -> SMUpdateDlg: Submit edited info
+  SMUpdateDlg -> API: updateStaffMember(staff)
+
+  API --> SMUpdateDlg: Success
+  SMUpdateDlg -> Staff: Close dialog
+
+  Staff -> API: Refetch staff members
+  API --> Staff: Updated list
+
+  Staff -> StaffTable: Re-render
+end
+
+' ============================================================
+' OPERATIONAL WINDOWS - OPEN
+' ============================================================
+group Open Operational Windows
+  User -> StaffTable: Click manage windows
+  StaffTable -> Staff: onOperationalWindowsClick(staff)
+
+  Staff -> OWDlg: Open dialog
+end
+
+' ============================================================
+' OPERATIONAL WINDOWS - CREATE
+' ============================================================
+group Create Operational Window
+  User -> OWDlg: Click Add Window
+  OWDlg -> OWCreateDlg: Open dialog
+
+  User -> OWCreateDlg: Submit new window
+  OWCreateDlg -> OWDlg: onSubmit(operationalWindow)
+
+  OWDlg -> API: createOperationalWindow(mecanographicNumber, operationalWindow)
+  API --> OWDlg: Success
+
+  OWDlg -> OWCreateDlg: Close
+  OWDlg -> Staff: Close dialog
+  Staff -> API: Refetch staff members
+  API --> Staff: Updated list
+end
+
+' ============================================================
+' OPERATIONAL WINDOWS - UPDATE
+' ============================================================
+group Update Operational Window
+  User -> OWDlg: Click Edit window
+  OWDlg -> OWUpdateDlg: Open dialog
+
+  User -> OWUpdateDlg: Submit changes
+  OWUpdateDlg -> OWDlg: onSubmit(updatedWindow)
+
+  OWDlg -> API: updateOperationalWindow(mecanographicNumber, windowCode, updatedWindow)
+  API --> OWDlg: Success
+
+  OWDlg -> OWUpdateDlg: Close
+  OWDlg -> Staff: Close dialog
+
+  Staff -> API: Refetch staff members
+  API --> Staff: Updated list
+end
+
+' ============================================================
+' OPERATIONAL WINDOWS - DELETE
+' ============================================================
+group Delete Operational Window
+  User -> OWDlg: Click Delete window
+  OWDlg -> ConfirmDlg: Open confirmation dialog
+  User -> ConfirmDlg: Confirm delete
+
+  OWDlg -> API: deleteOperationalWindow(mecanographicNumber, windowCode)
+  API --> OWDlg: Success
+
+  OWDlg -> ConfirmDlg: Close
+  OWDlg -> Staff: Close dialog
+
+  Staff -> API: Refetch staff members
+  API --> Staff: Updated list
+end
+
+' ============================================================
+' STAFF QUALIFICATIONS UPDATE
+' ============================================================
+group Update Staff Qualifications
+  User -> StaffTable: Click Manage Qualifications
+  StaffTable -> Staff: onQualificationsClick(staff)
+
+  Staff -> SMQualDlg: Open dialog
+
+  User -> SMQualDlg: Save qualifications
+  SMQualDlg -> Staff: onSave(listOfQualificationCodes)
+
+  Staff -> API: updateStaffQualifications(mecanographicNumber, qualificationCodes)
+  API --> Staff: Success
+
+  Staff -> SMQualDlg: Close dialog
+
+  Staff -> API: Refetch staff members
+  API --> Staff: Updated list
+end
+
+' ============================================================
+' QUALIFICATIONS - VIEW
+' ============================================================
+group View Qualifications
+  User -> Quals: Open Qualification section
+  Quals -> API: getAllQualifications()
+  API --> Quals: qualifications
+  Quals -> QualsTable: Render table
+end
+
+' ============================================================
+' QUALIFICATIONS - SEARCH
+' ============================================================
+group Search Qualifications
+  User -> Quals: Click Search icon
+  Quals -> QualSearchDlg: Open dialog
+
+  User -> QualSearchDlg: Submit search params
+  QualSearchDlg -> Quals: onSearch(params)
+
+  Quals -> API: searchQualifications(name, code, operatorType)
+  API --> Quals: filtered results
+
+  Quals -> QualsTable: Render filtered qualifications
+
+  User -> Quals: Click Clear Search
+  Quals -> API: getAllQualifications()
+  API --> Quals: all qualifications
+
+  Quals -> QualsTable: Render all
+end
+
+' ============================================================
+' QUALIFICATIONS - CREATE
+' ============================================================
+group Create Qualification
+  User -> Quals: Click Add Qualification
+  Quals -> QualCreateDlg: Open dialog
+
+  User -> QualCreateDlg: Submit new qualification
+  QualCreateDlg -> Quals: onSubmit(qualification)
+
+  Quals -> API: createQualification(qualification)
+  API --> Quals: Success
+
+  Quals -> QualCreateDlg: Close dialog
+  Quals -> API: getAllQualifications()
+  API --> Quals: Updated list
+
+  Quals -> QualsTable: Re-render
+end
+
+' ============================================================
+' QUALIFICATIONS - UPDATE
+' ============================================================
+group Update Qualification
+  User -> QualsTable: Click Edit qualification
+  QualsTable -> Quals: onUpdateButtonClick(code)
+
+  Quals -> QualUpdateDlg: Open dialog
+  QualUpdateDlg -> API: getQualificationById(code)
+  API --> QualUpdateDlg: qualification
+
+  User -> QualUpdateDlg: Submit changes
+  QualUpdateDlg -> API: updateQualification(updatedQualification)
+  API --> QualUpdateDlg: Success
+
+  QualUpdateDlg -> Quals: Close dialog
+
+  Quals -> API: getAllQualifications()
+  API --> Quals: Updated list
+
+  Quals -> QualsTable: Re-render
+end
+
+@enduml
+
+  API --> Quals: filteredQualifications
+  Quals -> QualsTable: render(filteredQualifications.data)
+
+  ' Clear search
+  User -> Quals: Click "Clear"
+  Quals -> Quals: handleClearSearch()
+  Quals -> Quals: setIsSearching(false)
+  Quals -> API: useGetAllQualificationsQuery()
+  API --> Quals: all qualifications
+  Quals -> QualsTable: render(allQualifications.data)
+end
+
+' ============================================================
+' QUALIFICATIONS - CREATE
+' ============================================================
+group Create Qualification
+  User -> Quals: Click "Add Qualification" icon
+  Quals -> QualCreateDlg: open()
+
+  User -> QualCreateDlg: Fill qualification form + Submit
+  QualCreateDlg -> Quals: onSubmit(qualification)
+
+  Quals -> API: createQualificationMutation.mutate(qualification)
+  API --> Quals: qualification created
+
+  Quals -> QualCreateDlg: handleClose()
+  Quals -> API: refetch qualifications
+  API --> Quals: updated qualifications
+
+  Quals -> QualsTable: re-render(updated qualifications)
+end
+
+' ============================================================
+' QUALIFICATIONS - UPDATE
+' ============================================================
+group Update Qualification
+  User -> QualsTable: Click "Edit" icon
+  QualsTable -> Quals: onUpdateButtonClick(qualificationCode)
+
+  Quals -> QualUpdateDlg: open(qualificationCode)
+  QualUpdateDlg -> API: useGetQualificationByIdQuery(qualificationCode)
+  API --> QualUpdateDlg: qualification details
+
+  User -> QualUpdateDlg: Edit + Save
+  QualUpdateDlg -> API: updateQualificationMutation.mutate(updatedQualification)
+
+  API --> QualUpdateDlg: qualification updated
+  QualUpdateDlg -> Quals: handleClose()
+
+  Quals -> API: refetch qualifications
+  API --> Quals: updated qualifications
+
+  Quals -> QualsTable: re-render(updated qualifications)
+end
+
+@enduml

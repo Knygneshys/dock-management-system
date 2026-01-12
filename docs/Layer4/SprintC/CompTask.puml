@@ -1,0 +1,45 @@
+@startuml
+title Complementary Tasks Component - Code Level
+
+class CompTaskController {
+  +createCompTask()
+  +updateCompTask()
+  +search()
+}
+
+interface ICompTaskService {
+  +create()
+  +update()
+  +search()
+}
+
+class compTaskService
+
+interface ICompTaskRepo {
+  +save()
+  +findByCode()
+  +search()
+}
+
+class compTaskRepo
+
+class ComplementaryTask { 
+  -code: GenericCode
+  -vveCode: VVNCode
+  -status: compTaskStatus
+  +create()
+}
+
+class CompTaskMap {
+  +toDTO()
+  +toDomain()
+}
+
+CompTaskController --> ICompTaskService
+compTaskService ..|> ICompTaskService
+compTaskService --> ICompTaskRepo
+compTaskRepo ..|> ICompTaskRepo
+compTaskRepo --> CompTaskMap
+CompTaskMap --> ComplementaryTask
+
+@enduml

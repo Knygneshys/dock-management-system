@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'JWP_API/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Install SWI-Prolog
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y swi-prolog
+
+      - name: Restore
+        run: dotnet restore ./JWP_API/JadeWesserPort.sln --use-lock-file
+
+      - name: Build
+        run: dotnet build ./JWP_API/JadeWesserPort.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test ./JWP_API/JadeWesserPort.sln --configuration Release --no-build --logger "trx;LogFileName=test_results.trx"

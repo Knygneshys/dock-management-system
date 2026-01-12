@@ -1,0 +1,1 @@
+export const getAllResourcesQueryKey = ["FETCH_ALL_RESOURCES"];

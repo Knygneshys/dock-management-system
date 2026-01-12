@@ -1,0 +1,33 @@
+@startuml US2210CD
+
+class VesselVisitNotificationsController {
+    +GetBySearch(requesterEmail: string, filterBy: string?, status: VVNStatus?, vesselImo: string?, startDate: DateTime?, endDate: DateTime?): Task<ActionResult<List<VVNDto>>>
+}
+
+class VVNService {
+    +GetFilteredAsync(companyCode: string?, representativeEmail: string?, status: VVNStatus?, vesselImo: string?, startDate: DateTime?, endDate: DateTime?): Task<List<VesselVisitNotification>>
+}
+
+class VVNRepository {
+    +GetFilteredAsync(companyCode: string?, representativeEmail: string?, status: VVNStatus?, vesselImo: string?, startDate: DateTime?, endDate: DateTime?): Task<List<VesselVisitNotification>>
+}
+
+class VesselVisitNotification {
+    +Code: int
+    +VesselImo: string
+    +Status: VVNStatus
+    +SubmissionDate: DateTime
+    +AssignedDock: string?
+}
+
+enum VVNStatus {
+    InProgress
+    Submitted
+    Approved
+    Rejected
+}
+
+VesselVisitNotificationsController --> VVNService : uses >
+VVNService --> VVNRepository : queries data >
+VVNRepository --> VesselVisitNotification : returns >
+@enduml

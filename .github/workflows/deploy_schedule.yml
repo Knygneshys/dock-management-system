@@ -1,0 +1,64 @@
+name: deploy-schedule-backend
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "25 22 * * 0"
+
+jobs:
+  build:
+    runs-on:
+      ubuntu-latest # For a list of available runner types, refer to
+      # https://help.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idruns-on
+
+    steps:
+      - name: Checkoutt
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore dependencies
+        run: dotnet restore SchedulePlaningModule/SchedulePlaningModule/SchedulePlanning.csproj
+
+      - name: Build
+        run: dotnet build SchedulePlaningModule/SchedulePlaningModule/SchedulePlanning.csproj --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test SchedulePlaningModule/SchedulePlanningTests/SchedulePlanningTests.csproj --configuration Release --no-build --logger "trx;LogFileName=test_results.trx"
+
+      - name: Publish
+        run: dotnet publish SchedulePlaningModule/SchedulePlaningModule/ -c Release -o published
+
+      - name: Stop service
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
+          script: echo "${{ secrets.PASSWORD }}" | sudo -S systemctl stop scheduling.service
+
+      - name: Deploy to server
+        uses: appleboy/scp-action@v0.1.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
+          overwrite: true
+          source: "published/*"
+          target: "/var/www/scheduling"
+
+      - name: Start service
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
+          script: echo "${{ secrets.PASSWORD }}" | sudo -S systemctl start scheduling.service
