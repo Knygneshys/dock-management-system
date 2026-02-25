@@ -2,8 +2,8 @@ name: Deploy Frontend
 
 on: 
   workflow_dispatch:
-  schedule:
-    - cron: "35 22 * * 1-6"
+#  schedule:
+#    - cron: "35 22 * * 1-6"
   
 jobs:
   build:
