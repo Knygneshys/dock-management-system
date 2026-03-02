@@ -1,9 +1,9 @@
 name: deploy-main-backend
 
-on: 
-  workflow_dispatch:
-  schedule:
-    - cron: "25 22 * * 1-6"
+# on: 
+#  workflow_dispatch:
+#  schedule:
+#    - cron: "25 22 * * 1-6"
   
 jobs:
   build:
